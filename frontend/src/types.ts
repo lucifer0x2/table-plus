@@ -192,10 +192,16 @@ export interface EditingPreferences {
   editorFontFamily: string
 }
 
+export interface CrashReportingPreferences {
+  prompted: boolean
+  enabled: boolean
+}
+
 export interface AppConfig {
   version: number
   sidebars: SidebarPreferences
   appearance: AppearancePreferences
   transfer: TransferPreferences
   editing: EditingPreferences
+  crashReporting: CrashReportingPreferences
 }

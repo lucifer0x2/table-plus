@@ -1,5 +1,5 @@
 import Presence from './components/ui/Presence'
-import { createSignal, For, onCleanup, onMount, Show } from 'solid-js'
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js'
 import { api } from './lib/backend/bridge'
 import useSidebarPreferences, {
   DEFAULT_APPEARANCE,
@@ -10,6 +10,7 @@ import SidebarResizeHandle, { useCompactSidebar, useSidebarWidth } from './compo
 import TitleBar from './components/layout/TitleBar'
 import Toast from './components/feedback/Toast'
 import AppearanceModal from './features/settings/AppearanceModal'
+import CrashReportingConsentModal from './features/settings/CrashReportingConsentModal'
 import DatabaseWorkspace, {
   ConnectionSkeleton,
   type ActivityController,
@@ -41,6 +42,8 @@ export default function App() {
   const [editingConnection, setEditingConnection] = createSignal<SavedConnection | null>(null)
   const [failedConnection, setFailedConnection] = createSignal<WorkspaceSession | null>(null)
   const [appearanceOpen, setAppearanceOpen] = createSignal(false)
+  const [crashConsentOpen, setCrashConsentOpen] = createSignal(false)
+  const [crashReportingConfigured, setCrashReportingConfigured] = createSignal(false)
   const [systemFonts, setSystemFonts] = createSignal<string[]>([])
   const [systemFontsLoading, setSystemFontsLoading] = createSignal(false)
   let systemFontsLoaded = false
@@ -85,6 +88,28 @@ export default function App() {
     sidebarPreferences.setAppearance(DEFAULT_APPEARANCE)
     sidebarPreferences.setEditing(DEFAULT_EDITING)
     sidebarPreferences.setTransfer(DEFAULT_TRANSFER)
+  }
+
+  createEffect(() => {
+    if (!sidebarPreferences.ready()) return
+    const preference = sidebarPreferences.crashReporting()
+    void api()
+      .SetCrashReportingEnabled(preference.enabled)
+      .catch((error) => {
+        setError(`Could not update crash reporting: ${String(error)}`)
+      })
+    void api()
+      .CrashReportingConfigured()
+      .then((configured) => {
+        setCrashReportingConfigured(configured)
+        if (!preference.prompted && configured) setCrashConsentOpen(true)
+      })
+      .catch((error) => setError(`Could not read crash reporting status: ${String(error)}`))
+  })
+
+  function chooseCrashReporting(enabled: boolean) {
+    sidebarPreferences.setCrashReporting({ prompted: true, enabled })
+    setCrashConsentOpen(false)
   }
 
   const activityController: ActivityController = {
@@ -488,17 +513,26 @@ export default function App() {
           appearance={sidebarPreferences.appearance()}
           transfer={sidebarPreferences.transfer()}
           editing={sidebarPreferences.editing()}
+          crashReporting={sidebarPreferences.crashReporting()}
+          crashReportingConfigured={crashReportingConfigured()}
           fonts={systemFonts()}
           fontsLoading={systemFontsLoading()}
           ready={sidebarPreferences.ready()}
           onChange={sidebarPreferences.setAppearance}
           onTransferChange={sidebarPreferences.setTransfer}
           onEditingChange={sidebarPreferences.setEditing}
+          onCrashReportingChange={sidebarPreferences.setCrashReporting}
           onRefreshFonts={() => void loadSystemFonts(true)}
           onReset={resetSettings}
           onClose={() => setAppearanceOpen(false)}
         />
       </Presence>
+      <Show when={crashConsentOpen()}>
+        <CrashReportingConsentModal
+          onAccept={() => chooseCrashReporting(true)}
+          onDecline={() => chooseCrashReporting(false)}
+        />
+      </Show>
     </div>
   )
 }
