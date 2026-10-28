@@ -2,7 +2,8 @@
 
 // Command build creates a QueryNest desktop or portable binary. Set
 // QUERYNEST_PORTABLE=true to select portable storage beside the application and
-// QUERYNEST_GLITCHTIP_DSN to embed the backend crash-reporting DSN.
+// QUERYNEST_GLITCHTIP_DSN to embed the backend crash-reporting DSN. The DSN is
+// optional; without it the build ships with crash reporting unavailable.
 package main
 
 import (

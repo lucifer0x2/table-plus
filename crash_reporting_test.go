@@ -211,6 +211,35 @@ func TestRestoreCrashReportingPreferenceEnablesPersistedOptIn(t *testing.T) {
 	}
 }
 
+func TestCrashReportingWithoutDSNStaysOffWithoutError(t *testing.T) {
+	previousDSN := glitchTipDSN
+	previousEnabled := crashReportingEnabled.Load()
+	t.Setenv("QUERYNEST_GLITCHTIP_DSN", "")
+	glitchTipDSN = ""
+	crashReportingEnabled.Store(false)
+
+	app := NewApp()
+	app.configPath = t.TempDir() + "/config.json"
+	t.Cleanup(func() {
+		app.stopCrashReportRetryLoop()
+		glitchTipDSN = previousDSN
+		crashReportingEnabled.Store(previousEnabled)
+	})
+
+	if err := app.SaveCrashReportingPreferences(CrashReportingPreferences{Prompted: true, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.restoreCrashReportingPreference(); err != nil {
+		t.Fatalf("restoring an opt-in without a DSN must not fail: %v", err)
+	}
+	if err := app.SetCrashReportingEnabled(true); err != nil {
+		t.Fatalf("enabling without a DSN must not fail: %v", err)
+	}
+	if crashReportingEnabled.Load() || app.CrashReportingConfigured() {
+		t.Fatal("crash reporting must stay off when no DSN is configured")
+	}
+}
+
 func TestRestoreCrashReportingPreferenceDoesNotEnableUnpromptedPreference(t *testing.T) {
 	previousEnabled := crashReportingEnabled.Load()
 	crashReportingEnabled.Store(false)

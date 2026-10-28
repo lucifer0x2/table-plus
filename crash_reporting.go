@@ -121,9 +121,11 @@ func (t *crashDeliveryTracker) RoundTrip(request *http.Request) (*http.Response,
 
 func (a *App) SetCrashReportingEnabled(enabled bool) error {
 	debugLogf("crash-reporting: set enabled=%t", enabled)
+	// The DSN is optional: a build without one keeps reporting off, even for a
+	// user who opted in on a build that had it, instead of failing every launch.
 	if enabled && configuredGlitchTipDSN() == "" {
-		debugLogf("crash-reporting: DSN is not configured")
-		return errors.New("crash reporting is not configured in this build")
+		debugLogf("crash-reporting: DSN is not configured; reporting stays off")
+		return nil
 	}
 	if enabled {
 		crashReportingInitMu.Lock()
